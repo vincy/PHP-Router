@@ -20,7 +20,6 @@ define("INVALID_PARAMETER_SUBTYPE", "elements type not valid for parameter");
 define("INVALID_PARAMETER_MIN_SIZE", "min size exceded for parameter");
 define("INVALID_PARAMETER_MAX_SIZE", "max size exceded for parameter");
 define("INVALID_PARAMETER_MATCH", "match not passed for parameter");
-
 define("SCRIPT_INVOKING", 1);
 define("SHELL_INVOKING", 2);
 define("REST_INVOKING", 3);
@@ -53,6 +52,9 @@ class Router
    const REST_INVOKING = 3;
    
    public static function __callStatic($name, $parameters)
+   {  return self::_ScriptRouting($name, $parameters);   }
+   
+   public static function _ScriptRouting($name, $parameters)
    {
       @list($class_name, $method_name) = explode("_", $name); 
       return self::_route($class_name, $method_name, $parameters);
@@ -245,14 +247,18 @@ class Router
       $required_parameters_names = array_keys(self::$required_parameters);
       $required_parameters_number = count(self::$required_parameters);
             
+      //print_r(self::$real_parameters);
+      //print_r(self::$real_required_parameters_number);
+      //print_r($required_parameters);
+      
       /* check method parameters number againist passed parameters number */
       if(($required_parameters_number < self::$real_required_parameters_number) || ($required_parameters_number > self::$real_parameters_number))
          Router::$reports[] = INVALID_PARAMETERS_COUNT;
-      
+
       /* check method parameters names againist passed parameters names for rest and shell invoking */
       if(self::$invoking_method != SCRIPT_INVOKING)
          foreach(self::$real_parameters as $real_parameter)
-            if(!$real_parameter->isDefaultValueAvailable() && !isset(self::$required_parameters[$real_parameter->name]))
+            if(!isset(self::$required_parameters[$real_parameter->name]) && !$real_parameter->isDefaultValueAvailable())
                Router::$reports[] = INVALID_PARAMETERS_COUNT;
 
       if(Router::$reports)
@@ -274,7 +280,10 @@ class Router
       /* else rename them for script invoking */
       else
          foreach(self::$real_parameters as $index => $real_parameter)
-            $ordered_parameters[$real_parameter->name] = self::$required_parameters[$index];
+            if($real_parameter->isDefaultValueAvailable())
+               $ordered_parameters[$real_parameter->name] = (isset(self::$required_parameters[$index])) ? self::$required_parameters[$index] : $real_parameter->getDefaultValue();
+            else
+               $ordered_parameters[$real_parameter->name] = self::$required_parameters[$index];
       
       self::$required_parameters = $ordered_parameters;   
    }
@@ -294,10 +303,16 @@ class Router
       catch(Exception $e)
       {  return true;  }
       
+      foreach(self::$real_parameters as $real_parameter);
+         if($real_parameter->name == $parameter_name)
+            if($real_parameter->isDefaultValueAvailable())
+               if($real_parameter->getDefaultValue() == $parameter_value)
+                  return true;
+
       $conditions = array("type", "subtype", "no_key", "min", "max", "positive_match", "negative_match", "error_code");
       foreach($conditions as $condition)
          $$condition = @$parameter[$condition];
-      
+
       /* type */
       if($type != null)
       {
