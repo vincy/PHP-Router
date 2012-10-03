@@ -1,12 +1,12 @@
 <?php
 
-require_once 'config.php';
-
 /*
  **************************
  * OVERKILLING PHP ROUTER *
  **************************
 */
+
+require_once 'config.php';
 
 define("INVALID_REQUEST", "request not valid");
 define("INVALID_PARAMETERS_COUNT", "missing or extra parameters passed");
