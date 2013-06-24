@@ -3,7 +3,6 @@ PHP-Router
 
 What's that?
 A REST / SHELL / API Requests Routing System: yep! It provides "a centralized entry point for handling requests".
-It works out of the box.
 
 How does it work?
 Suppose to have a class Animal and a static method eat, then you may do the following:
