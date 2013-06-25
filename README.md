@@ -48,16 +48,35 @@ The output is the pretty printed JSON encoded value returned by the funcion.
 
 If you didn't already know, you can pass array and hashes (objects) using this syntax:
 
-```
+```php
 class Animal
 {
    public static function eat($hotdogs, $mayo = true, $ketchup = false)
    {  return get_defined_vars();  }
 }
-
-$> php Router.php 'Animal/eat?hotdogs[first]=big&hotdogs[second]=very_big&mayo[]=first_array_element&mayo[]=second_array_element'
-curl www.mydomain.com/r/Animal/eat?hotdogs[first]=big&hotdogs[second]=very_big&mayo[]=first_array_element&mayo[]=second_array_element
 ```
+```
+$> php Router.php 'Animal/eat?hotdogs[first]=big&hotdogs[second]=very_big&mayo[]=first_array_element&mayo[]=second_array_element'
+$> curl www.mydomain.com/r/Animal/eat?hotdogs[first]=big&hotdogs[second]=very_big&mayo[]=first_array_element&mayo[]=second_array_element
+```
+
+Output:
+```
+{
+    "data": {
+        "hotdogs": {
+            "first": "big",
+            "second": "very_big"
+        },
+        "mayo": [
+            "first_array_element",
+            "second_array_element"
+        ],
+        "ketchup": false
+    }
+}
+```
+
 
 #### Contents
 * [Parameters validation](#validation)
