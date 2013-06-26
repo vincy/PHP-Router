@@ -1,5 +1,7 @@
 <?php
 
+require_once 'config.php';
+
 class Router
 {
    const REST_INVOKING = "rest";
@@ -12,7 +14,6 @@ class Router
    const ERR_PARAMS_1 = "ERR_PARAMS_MISMATCH";
    const ERR_PARAMS_2 = "ERR_PARAMS_MANDATORY_MISSING";
    
-   static $instance = null;
    static $routing_steps  = ["preliminaryChecks", "buildMetadata", "authenticate", "authorize", "checkParameters", "invokeMethod"];
       
    public $invoking_type = false;
@@ -47,10 +48,19 @@ class Router
    public $_ = false; # jquery ajax cache bypassing parameter
    public $api_key = false;
    
-   # (sh**ty) two lines singleton
-   public static function getInstance()
-   {  return self::$instance;  }
+   # true to enable warnings!
+   const DEBUG = false;  
    
+   protected static $instance;
+   
+   final public static function getInstance()
+   {  
+      if(empty(static::$instance))
+         static::$instance = new static();  
+      
+      return static::$instance;
+   }      
+
    public static function shellInit($string)
    {
       $temp1 = explode("/", $string);
@@ -70,7 +80,7 @@ class Router
       $called_class = (isset($_REQUEST["called_class"])) ? $_REQUEST["called_class"] : "";
       $called_method = (isset($_REQUEST["called_method"])) ? $_REQUEST["called_method"] : "";
 
-      foreach(["called_class", "called_method", "PHPSESSID", "__utma", "__utmc", "__utmz"] as $unset)
+      foreach(["called_class", "called_method", "PHPSESSID", "__utma", "__utmb", "__utmc", "__utmz"] as $unset)
          unset($_REQUEST[$unset]);
       
       return new self($called_class, $called_method, $_REQUEST, self::REST_INVOKING);
@@ -175,6 +185,16 @@ class Router
    
    public function checkParameters()
    {
+      if(self::DEBUG)
+      {
+         print "Called params count: $this->called_params_count\n";
+         print "Required params count: $this->real_required_params_count\n";
+         print "Called params names\n";
+         print_r($this->called_params_names);
+         print "Real params names\n";
+         print_r($this->real_params_names);
+      }
+
       if(in_array("open_data", $this->real_params_names))
       {
          $this->fixed_params["open_data"] = $this->called_params;
