@@ -61,6 +61,14 @@ class Router
       return static::$instance;
    }      
 
+   public static function getInstance()
+   {  
+      if(empty(static::$instance))
+         static::$instance = new static();  
+      
+      return static::$instance;
+   }      
+
    public static function shellInit($string)
    {
       $temp1 = explode("/", $string);
@@ -79,13 +87,16 @@ class Router
    {
       $called_class = (isset($_REQUEST["called_class"])) ? $_REQUEST["called_class"] : "";
       $called_method = (isset($_REQUEST["called_method"])) ? $_REQUEST["called_method"] : "";
-
-      foreach(["called_class", "called_method", "PHPSESSID", "__utma", "__utmb", "__utmc", "__utmz"] as $unset)
+      
+      # remove cookies!
+      $_REQUEST = array_diff($_REQUEST, $_COOKIE);
+ 
+      foreach(["called_class", "called_method", "PHPSESSID"] as $unset)
          unset($_REQUEST[$unset]);
       
       return new self($called_class, $called_method, $_REQUEST, self::REST_INVOKING);
    }
-   
+ 
    public function __construct($called_class, $called_method, $called_params, $invoking_type)
    {
       $this->invoking_type = $invoking_type;
