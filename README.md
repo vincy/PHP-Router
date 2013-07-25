@@ -98,16 +98,11 @@ If one check fails the Router will return a built-in error.
 <a name="security"/>
 #### Security
 The Router defaults to the Allow / Deny policy: if you do not provide the auth* methods then no access will be provided your app.  
-If you just wanna test it, then you can simply put this to access anything within your classes and you (and anyone else...) are free to go:
+If you just wanna test it, then you can simply set the config var $allow_policy to true.
+Then you (and anyone else..) will gain access to anything within your classes:
 
 ```php
-Router::$authentication_method = function(){
-   return true;
-};
-
-Router::$authorization_method = function($my_auth, $method_auth){
-   return true;
-};
+Router::$allow_policy = true;
 ```
 
 Otherwise follows these guidelines: in the following example I'll be using a ranking system, but you can use whichever logic you wish!
@@ -157,7 +152,7 @@ Router::$authorization_method = function($my_auth, $method_auth){
 
 <a name="trigger"/>
 #### Trigger apps errors
-To return errors instead of data use the Router::setError($msg) method:
+To return errors instead of data use the Router::returnError($error) method:
 ```php
 class Animal
 {
