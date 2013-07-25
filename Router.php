@@ -10,7 +10,7 @@
  */
 
 /**
- * The router auto detect if it was called
+ * The router auto detect if it has been called
  */
 Router::boot();
 
