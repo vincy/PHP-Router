@@ -78,28 +78,28 @@ class Router
     */
    public $ordered_params = [];
 
-   /*
+   /**
     * The user defined method for user authentication
     *
     * @static callable
     */
    static $authentication_method = false;
 
-   /*
+   /**
     * The user defined method for user authorization
     *
     * @static callable
     */
    static $authorization_method = false;
 
-   /*
+   /**
     * The value returned by the user defined method for user authentication
     *
     * @static mixed
     */
    static $me = false;
 
-   /*
+   /**
     * The value returned by the user defined method for user authorization
     *
     * @static mixed
@@ -387,9 +387,6 @@ class Router
        * - invoke method
        * - return json encoded result or errors
        */
-
-      require_once "Test.php";
-      self::$allow_policy = true;
 
       header("Content-type: text/plain");
 
