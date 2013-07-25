@@ -107,35 +107,23 @@ class Router
    static $authorization = false;
 
    /**
-    * Singleton implementation of the Router: needed to return error within any point in your code
+    * Simply create the router instance setting the class, method and params passed
     *
-    * @var null
+    * @param $called_class the class the user passed
+    * @param $called_method the method the user passed
+    * @param $called_params the params the user passed
     */
-   protected static $instance;
-
-   /**
-    * Return the Router instance
-    *
-    * @return Router
-    */
-   static function getInstance($clean)
+   protected function __construct($called_class, $called_method, $called_params)
    {
-      if(empty(self::$instance))
-         self::$instance = new self();
-      else
-         foreach(self::$instance as $key => $value)
-            self::$instance->$key = null;
-
-      return self::$instance;
+      $this->called_class = $called_class;
+      $this->called_method = $called_method;
+      $this->called_params = (array)$called_params;
    }
-
-   protected function __construct()
-   {}
 
    /**
     * Parse the argv to get the called class, the called method and the params
     *
-    * @param $string the url passed to the script
+    * @param string $string the url passed to the script
     * @return Router
     */
    public static function shellInit($string)
@@ -152,11 +140,7 @@ class Router
       if(!empty($matches[4]))
          parse_str($matches[4], $called_params);
 
-      $router = self::getInstance(true);
-      $router->called_class = $called_class;
-      $router->called_method = $called_method;
-      $router->called_params = (array)$called_params;
-      return $router;
+      return new self($called_class, $called_method, $called_params);
    }
 
    /**
@@ -174,11 +158,7 @@ class Router
       foreach(["called_class", "called_method", "_"] as $unset)
          unset($called_params[$unset]);
 
-      $router = self::getInstance(true);
-      $router->called_class = $called_class;
-      $router->called_method = $called_method;
-      $router->called_params = (array)$called_params;
-      return $router;
+      return new self($called_class, $called_method, $called_params);
    }
 
    /**
@@ -356,7 +336,7 @@ class Router
    /**
     * Print the data in an array ["data" => data] according to the invocation type: a simple print_r if the script was cli invoked, a pretty print json encode if the script was REST invoked
     *
-    * @param $data
+    * @param mixed $data
     */
    static function outputData($data)
    {
@@ -371,7 +351,7 @@ class Router
    /**
     * Print the error in an array ["error" => error] according to the invocation type: a simple print_r if the script was cli invoked, a pretty print json encode if the script was REST invoked
     *
-    * @param $error
+    * @param mixed $error
     */
    static function outputError($error)
    {
@@ -386,7 +366,7 @@ class Router
    /**
     * Let the Router output the error
     *
-    * @param $error
+    * @param mixed $error the error to throw out
     */
    static function returnError($error)
    {  die(self::outputError($error));  }
