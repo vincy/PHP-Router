@@ -86,7 +86,7 @@ Output:
 <a name="validation"/>
 #### Parameters validation
 
-The Router auto checks what follows:
+The Router auto checks the followings:
 
 - The method requested exists
 - The passed parameters count is equal or greater then the method mandatory parameters count
@@ -99,7 +99,7 @@ If one check fails the Router will return a built-in error.
 #### Security
 The Router defaults to the Allow / Deny policy: if you do not provide the auth* methods then no access will be provided your app.  
 If you just wanna test it, then you can simply set the config var $allow_policy to true.
-Then you (and anyone else..) will gain access to anything within your classes:
+Then you (and anyone else..) will gain access to anything within your classes (even PHP built-in classes off course!):
 
 ```php
 Router::$allow_policy = true;

@@ -19,7 +19,7 @@ class Router
    /**
     * Error codes
     *
-    * @const string 
+    * @const string
     */
    const ERR_REQUEST = "ERR_REQUEST";
    const ERR_AUTH = "ERR_AUTH";
