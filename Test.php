@@ -13,6 +13,9 @@ class Test
 
    static function twoParams($a, $b, $c = false)
    {  return get_defined_vars();  }
+
+   static function ops()
+   {  return Router::returnError("USER_ERROR");  }
 }
 
 ?>

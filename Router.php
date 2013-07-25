@@ -106,12 +106,31 @@ class Router
     */
    static $authorization = false;
 
-   protected function __construct($called_class, $called_method, $called_params)
+   /**
+    * Singleton implementation of the Router: needed to return error within any point in your code
+    *
+    * @var null
+    */
+   protected static $instance;
+
+   /**
+    * Return the Router instance
+    *
+    * @return Router
+    */
+   static function getInstance($clean)
    {
-      $this->called_class = $called_class;
-      $this->called_method = $called_method;
-      $this->called_params = (array)$called_params;
+      if(empty(self::$instance))
+         self::$instance = new self();
+      else
+         foreach(self::$instance as $key => $value)
+            self::$instance->$key = null;
+
+      return self::$instance;
    }
+
+   protected function __construct()
+   {}
 
    /**
     * Parse the argv to get the called class, the called method and the params
@@ -129,11 +148,15 @@ class Router
       if(substr($called_method, -1) == "?")
          $called_method = substr($called_method, 0, -1);
 
-      $called_params = null;
+      $called_params = [];
       if(!empty($matches[4]))
          parse_str($matches[4], $called_params);
 
-      return new self($called_class, $called_method, $called_params);
+      $router = self::getInstance(true);
+      $router->called_class = $called_class;
+      $router->called_method = $called_method;
+      $router->called_params = (array)$called_params;
+      return $router;
    }
 
    /**
@@ -151,7 +174,11 @@ class Router
       foreach(["called_class", "called_method", "_"] as $unset)
          unset($called_params[$unset]);
 
-      return new self($called_class, $called_method, $called_params);
+      $router = self::getInstance(true);
+      $router->called_class = $called_class;
+      $router->called_method = $called_method;
+      $router->called_params = (array)$called_params;
+      return $router;
    }
 
    /**
@@ -176,6 +203,7 @@ class Router
       $this->real_method = new ReflectionMethod($this->called_class, $this->called_method);
       $this->real_params = $this->real_method->getParameters();
 
+      $this->real_params_names = [];
       foreach($this->real_params as $real_param)
          $this->real_params_names[] = $real_param->name;
 
@@ -354,6 +382,14 @@ class Router
       else
          print(json_encode($output, JSON_PRETTY_PRINT));
    }
+
+   /**
+    * Let the Router output the error
+    *
+    * @param $error
+    */
+   static function returnError($error)
+   {  die(self::outputError($error));  }
 
    /**
     * Detect whether the router was actually invoked or not and execute it
