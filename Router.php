@@ -1,33 +1,69 @@
 <?php
 
+/**
+ * PHP Router (https://github.com/OverKiller/PHP-Router)
+ *
+ * @author     Damiano Barbati <damiano.barbati@gmail.com>
+ * @copyright  Copyright (c) 2013-2014 Damiano Barbati (http://www.damianobarbati.com)
+ * @license    http://www.wtfpl.net/about/ DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+ * @link       https://github.com/OverKiller/PHP-Router for the source repository
+ */
+
+/**
+ * The router auto detect if it was called
+ */
+Router::boot();
+
 class Router
 {
-   # true to enable debugging!
-   const DEBUG = false;
-
-   const REST_INVOKING = "rest";
-   const SHELL_INVOKING = "shell";
-
-   # routing errors 
+   /**
+    * Error codes
+    *
+    * @const string
+    */
    const ERR_REQUEST = "ERR_REQUEST";
    const ERR_AUTH = "ERR_AUTH";
    const ERR_PARAMS_COUNT = "ERR_PARAMS_COUNT";
-   const ERR_PARAMS_1 = "ERR_PARAMS_MISMATCH";
-   const ERR_PARAMS_2 = "ERR_PARAMS_MANDATORY_MISSING";
+   const ERR_PARAMS_MISMATCH = "ERR_PARAMS_MISMATCH";
+   const ERR_PARAMS_MISSING = "ERR_PARAMS_MISSING";
 
-   static $routing_steps  = ["preliminaryChecks", "buildMetadata", "authenticate", "authorize", "checkParameters", "invokeMethod"];
+   /**
+    * Debug flag: if true then built metadata will be outputted
+    *
+    * @static bool
+    */
+   static $debug = false;
 
-   public $invoking_type = false;
+   /**
+    * Unserialize bools flag: if true then "true", "false" and "null" strings will be converted to booleans true, false and null
+    *
+    * @static bool
+    */
+   static $unserialize_bools = true;
 
-   static $CLASS = false;
-   static $METHOD = false;
+   /**
+    * Allow policy flag: if true then every method can be executed without any auth needed
+    *
+    * @static bool
+    */
+   static $allow_policy = false;
 
+   /**
+    * Supposed method metadata
+    *
+    * @var mixed
+    */
    public $called_class = false;
    public $called_method = false;
    public $called_params = [];
    public $called_params_names = [];
    public $called_params_count = false;
 
+   /**
+    * Real method metadata
+    *
+    * @var mixed
+    */
    public $real_class = false;
    public $real_method = false;
    public $real_params = [];
@@ -35,70 +71,118 @@ class Router
    public $real_params_count = false;
    public $real_required_params_count = false;
 
-   public $fixed_params = [];
+   /**
+    * Params passed ordered to be passed to the invoking method
+    *
+    * @var array
+    */
+   public $ordered_params = [];
 
+   /*
+    * The user defined method for user authentication
+    *
+    * @static callable
+    */
    static $authentication_method = false;
-   static $me = false;
+
+   /*
+    * The user defined method for user authorization
+    *
+    * @static callable
+    */
    static $authorization_method = false;
+
+   /*
+    * The value returned by the user defined method for user authentication
+    *
+    * @static mixed
+    */
+   static $me = false;
+
+   /*
+    * The value returned by the user defined method for user authorization
+    *
+    * @static mixed
+    */
    static $authorization = false;
 
-   public $result = false;
-   public $error = null;
-   public $output = null;
-
-   public $_ = false; # jquery ajax cache bypassing parameter
-   public $api_key = false;
-
-   protected static $instance;
-
-   final public static function getInstance()
+   protected function __construct($called_class, $called_method, $called_params)
    {
-      if(empty(static::$instance))
-         static::$instance = new static();
-
-      return static::$instance;
+      $this->called_class = $called_class;
+      $this->called_method = $called_method;
+      $this->called_params = (array)$called_params;
    }
 
+   /**
+    * Parse the argv to get the called class, the called method and the params
+    *
+    * @param $string the url passed to the script
+    * @return Router
+    */
    public static function shellInit($string)
    {
-      $temp1 = explode("/", $string);
-      $temp2 = explode("?", @$temp1[1]);
-      $query_string = isset($temp2[1]) ? $temp2[1] : "";
-      $called_params = [];
-      parse_str($query_string, $called_params);
+      preg_match("/(.+?)\/(.+?)(\?(.+?$)|$)/im", $string, $matches);
 
-      $called_class = (isset($temp1[0])) ? $temp1[0] : "";
-      $called_method = (isset($temp2[0])) ? $temp2[0] : "";
+      $called_class = (!empty($matches[1])) ? $matches[1] : null;
 
-      return new self($called_class, $called_method, $called_params, self::SHELL_INVOKING);
+      $called_method = (!empty($matches[2])) ? $matches[2] : null;
+      if(substr($called_method, -1) == "?")
+         $called_method = substr($called_method, 0, -1);
+
+      $called_params = null;
+      if(!empty($matches[4]))
+         parse_str($matches[4], $called_params);
+
+      return new self($called_class, $called_method, $called_params);
    }
 
-   public static function RESTInit()
+   /**
+    * Get the called class, the called method and the params within the REQUEST superglobal and then merge the POST and GET to get the params
+    *
+    * @return Router
+    */
+   static function RESTInit()
    {
       $called_class = (isset($_REQUEST["called_class"])) ? $_REQUEST["called_class"] : "";
       $called_method = (isset($_REQUEST["called_method"])) ? $_REQUEST["called_method"] : "";
 
-      # remove cookies!
-      $_REQUEST = array_merge($_POST, $_GET);
+      $called_params = array_merge($_POST, $_GET);
 
-      foreach(["called_class", "called_method"] as $unset)
-         unset($_REQUEST[$unset]);
+      foreach(["called_class", "called_method", "_"] as $unset)
+         unset($called_params[$unset]);
 
-      return new self($called_class, $called_method, $_REQUEST, self::REST_INVOKING);
+      return new self($called_class, $called_method, $called_params);
    }
 
-   public function __construct($called_class, $called_method, $called_params, $invoking_type)
-   {
-      $this->invoking_type = $invoking_type;
-      $this->called_class = self::$CLASS = $called_class;
-      $this->called_method = self::$METHOD = $called_method;
-      $this->called_params = (array)$called_params;
-      self::$instance = $this;
-   }
+   /**
+    * Check whether the calling method really exists excluding the router itself
+    *
+    * @return bool
+    */
+   function methodExists()
+   {  return $this->called_class == __CLASS__ ? false : method_exists($this->called_class, $this->called_method);  }
 
-   public function preliminaryChecks()
+   /**
+    * Build the metadata needed to further check for authentication, authorization and params validation
+    *
+    * @return bool
+    */
+   function buildMetadata()
    {
-      if(self::DEBUG)
+      $this->called_params_names = array_keys($this->called_params);
+      $this->called_params_count = count($this->called_params);
+
+      $this->real_class = new ReflectionClass($this->called_class);
+      $this->real_method = new ReflectionMethod($this->called_class, $this->called_method);
+      $this->real_params = $this->real_method->getParameters();
+
+      foreach($this->real_params as $real_param)
+         $this->real_params_names[] = $real_param->name;
+
+      $this->real_params_count = $this->real_method->getNumberOfParameters();
+      $this->real_required_params_count = $this->real_method->getNumberOfRequiredParameters();
+
+      if(self::$debug)
       {
          print "Class: $this->called_class\n";
          print "Method: $this->called_method\n";
@@ -110,80 +194,28 @@ class Router
          print_r($this->real_params_names);
       }
 
-      # check whether method exists or not
-      if(empty($this->called_class) || $this->called_class == __CLASS__ || empty($this->called_method) || !method_exists($this->called_class, $this->called_method))
-      {
-         $this->error = self::ERR_REQUEST;
-         return false;
-      }
-
-      # clean params
-      $unsets = ["api_key", "_"];
-      foreach($unsets as $key)
-         if(isset($this->called_params[$key]))
-         {
-            $this->$key = $this->called_params[$key];
-            unset($this->called_params[$key]);
-         }
-
-      # fix boolean values passed as strings
-      array_walk_recursive($this->called_params, function(&$key, $value){
-         if($value == "true")
-            $value = true;
-         else if($value == "false")
-            $value  = false;
-         else if($value == "null")
-            $value = null;
-      });
-
-      foreach($this->called_params as &$called_param)
-      {
-         if($called_param == "true")
-            $called_param = true;
-         else if($called_param == "false")
-            $called_param = false;
-         else if($called_param == "null")
-            $called_param = null;
-      }
-
       return true;
    }
 
-   public function buildMetadata()
+   /**
+    * Call the user defined method for user authentication if callable and save the result in the static "me"
+    *
+    * @return bool
+    */
+   function authenticate()
    {
-      $this->called_params_names = array_keys($this->called_params);
-      $this->called_params_count = count($this->called_params);
-
-      $this->real_class = new ReflectionClass($this->called_class);
-      $this->real_method = new ReflectionMethod($this->called_class, $this->called_method);
-      $this->real_params = $this->real_method->getParameters();
-
-      # get real parameters names array 
-      foreach($this->real_params as $real_param)
-         $this->real_params_names[] = $real_param->name;
-
-      # get real parameters counts 
-      $this->real_params_count = $this->real_method->getNumberOfParameters();
-      $this->real_required_params_count = $this->real_method->getNumberOfRequiredParameters();
-
-      return true;
-   }
-
-   public function authenticate()
-   {
-      if($this->invoking_type != self::REST_INVOKING)
-         return true;
-
       if(is_callable(self::$authentication_method))
-         self::$me = self::$authentication_method->__invoke($this->api_key);
+         self::$me = self::$authentication_method->__invoke();
       return true;
    }
 
-   public function authorize()
+   /**
+    * Call the user defined authorization method passing the me returned by the authentication method and the method auth defined within the class static auth var if any
+    *
+    * @return bool
+    */
+   function authorize()
    {
-      if($this->invoking_type != self::REST_INVOKING)
-         return true;
-
       try
       {  $auth = $this->real_class->getStaticPropertyValue("auth");  }
       catch(Exception $e)
@@ -205,84 +237,197 @@ class Router
       return true;
    }
 
-   public function checkParameters()
+   /**
+    * Check method parameters count againist passed parameters count
+    *
+    * @return bool
+    */
+   function verifyParamsCount()
+   {
+      if(($this->called_params_count < $this->real_required_params_count) || ($this->called_params_count > $this->real_params_count))
+         return false;
+      return true;
+   }
+
+   /**
+    * Check method parameters names againist passed parameters names
+    *
+    * @return bool
+    */
+   function verifyParamsNames()
+   {
+      foreach($this->called_params_names as $called_param)
+         if(!in_array($called_param, $this->real_params_names))
+            return false;
+      return true;
+   }
+
+   /**
+    * Check mandatory method parameters againist passed parameters
+    *
+    * @return bool
+    */
+   function verifyMandatoryParams()
+   {
+      foreach($this->real_params as $real_param)
+         if(!array_key_exists($real_param->name, $this->called_params) && !$real_param->isDefaultValueAvailable())
+            return false;
+      return true;
+   }
+
+   /**
+    * Convert every "true", "false" and "null" parameters to bool values true, false and null
+    *
+    * @return bool
+    */
+   function unserializeBools()
+   {
+      array_walk_recursive($this->called_params, function(&$value){
+         if($value == "true")
+            $value = true;
+         else if($value == "false")
+            $value  = false;
+         else if($value == "null")
+            $value = null;
+      });
+
+      return true;
+   }
+
+   /**
+    * Reorder passed params to let them match the expected ones within the method to be invoked
+    *
+    * @return bool
+    */
+   function orderParams()
    {
       if(in_array("open_data", $this->real_params_names))
       {
-         $this->fixed_params["open_data"] = $this->called_params;
+         $this->ordered_params["open_data"] = $this->called_params;
          return true;
       }
 
-      # check method parameters count againist passed parameters count 
-      if(($this->called_params_count < $this->real_required_params_count) || ($this->called_params_count > $this->real_params_count))
-      {
-         $this->error = self::ERR_PARAMS_COUNT;
-         return false;
-      }
-
-      # check method parameters names againist passed parameters names
-      foreach($this->called_params_names as $called_param)
-         if(!in_array($called_param, $this->real_params_names))
-            $this->error = self::ERR_PARAMS_1;
-
-      # check mandatory method parameters againist passed parameters
-      foreach($this->real_params as $real_param)
-         if(!array_key_exists($real_param->name, $this->called_params) && !$real_param->isDefaultValueAvailable())
-            $this->error = self::ERR_PARAMS_2;
-
-      if($this->error)
-         return false;
-
-      # reorder parameters 
-      $this->fixed_params = [];
+      $this->ordered_params = [];
       foreach($this->real_params as $real_param)
          if($real_param->isDefaultValueAvailable())
-            $this->fixed_params[$real_param->name] = (isset($this->called_params[$real_param->name])) ? $this->called_params[$real_param->name] : $real_param->getDefaultValue();
+            $this->ordered_params[$real_param->name] = (isset($this->called_params[$real_param->name])) ? $this->called_params[$real_param->name] : $real_param->getDefaultValue();
          else
-            $this->fixed_params[$real_param->name] = $this->called_params[$real_param->name];
+            $this->ordered_params[$real_param->name] = $this->called_params[$real_param->name];
+
       return true;
    }
 
-   public function invokeMethod()
+   /**
+    * Return the result of the called method invocation
+    *
+    * @return mixed
+    */
+   function invokeMethod()
+   {  return $this->real_method->invokeArgs(null, $this->ordered_params);  }
+
+   /**
+    * Print the data in an array ["data" => data] according to the invocation type: a simple print_r if the script was cli invoked, a pretty print json encode if the script was REST invoked
+    *
+    * @param $data
+    */
+   static function outputData($data)
    {
-      $this->result = $this->real_method->invokeArgs(null, $this->fixed_params);
-      return true;
+      $output = ["data" => $data];
+
+      if(php_sapi_name() == "cli")
+         print_r($output);
+      else
+         print(json_encode($output, JSON_PRETTY_PRINT));
    }
 
-   public function outputResult()
+   /**
+    * Print the error in an array ["error" => error] according to the invocation type: a simple print_r if the script was cli invoked, a pretty print json encode if the script was REST invoked
+    *
+    * @param $error
+    */
+   static function outputError($error)
    {
-      $data = (empty($this->error)) ? ["data" => $this->result] : ["error" => $this->error];
-      $output = ($this->invoking_type == self::SHELL_INVOKING) ? print_r($data, 1) : json_encode($data, JSON_PRETTY_PRINT);
-      return $output;
+      $output = ["error" => $error];
+
+      if(php_sapi_name() == "cli")
+         print_r($output);
+      else
+         print(json_encode($output, JSON_PRETTY_PRINT));
    }
 
-   public static function setError($error)
+   /**
+    * Detect whether the router was actually invoked or not and execute it
+    */
+   static function boot()
    {
-      $router = self::getInstance();
-      $router->error = $error;
-      return false;
+      /**
+       * Detect script invocation
+       */
+      if(!stristr($_SERVER["SCRIPT_NAME"], __CLASS__ . ".php"))
+         return;
+
+      global $argv;
+
+      /**
+       * Find out if it was cli or REST invoked and get the router object
+       */
+      if(php_sapi_name() == "cli")
+         $router = Router::shellInit(!empty($argv[1]) ? $argv[1] : "");
+      else
+         $router = Router::RESTInit();
+
+      /**
+       * Routing steps:
+       * - verify method existence
+       * - authenticate user if needed
+       * - verify authorization if needed
+       * - verify passed params if needed
+       * - unserialize bool params if needed
+       * - reorder passed params
+       * - invoke method
+       * - return json encoded result or errors
+       */
+
+      require_once "Test.php";
+      self::$allow_policy = true;
+
+      header("Content-type: text/plain");
+
+      if(!$router->methodExists())
+         die(self::outputError(self::ERR_REQUEST));
+
+      $router->buildMetadata();
+
+      if(!self::$allow_policy)
+      {
+         if(!$router->authenticate())
+            die(self::outputError(self::ERR_AUTH));
+
+         if(!$router->authorize())
+            die(self::outputError(self::ERR_AUTH));
+      }
+
+      if(!in_array("open_data", $router->real_params_names))
+      {
+         if(!$router->verifyParamsCount())
+            die(self::outputError(self::ERR_PARAMS_COUNT));
+
+         if(!$router->verifyParamsNames())
+            die(self::outputError(self::ERR_PARAMS_MISMATCH));
+
+         if(!$router->verifyMandatoryParams())
+            die(self::outputError(self::ERR_PARAMS_MISSING));
+      }
+
+      if(self::$unserialize_bools)
+         $router->unserializeBools();
+
+      $router->orderParams();
+      $result = $router->invokeMethod();
+
+      self::outputData($result);
+      die;
    }
-}
-
-/* detect shell or browser invocation */
-if(php_sapi_name() == "cli" && !empty($argv[0]) && $argv[0] == $_SERVER["SCRIPT_NAME"])
-{
-   #die("shell");
-   $router = Router::shellInit(!empty($argv[1]) ? $argv[1] : "");
-}
-else if(!empty($_REQUEST["called_class"]))
-{
-   #die("rest");
-   $router = Router::RESTInit();
-}
-
-if(isset($router))
-{
-   header("Content-type: text/plain");
-   foreach($router::$routing_steps as $routing_step)
-      if(!$router->$routing_step())
-         die($router->outputResult());
-   die($router->outputResult());
 }
 
 ?>
