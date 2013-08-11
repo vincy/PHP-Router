@@ -77,11 +77,23 @@ Output:
 }
 ```
 
-
 #### Contents
+* [Set Up](#set-up)
 * [Parameters validation](#validation)
 * [Security](#security)
 * [Trigger app errors](#trigger)
+
+<a name="set-up"/>
+#### Set Up
+
+* Put the following in your .htaccess, assuming you want the request to the r/ path to be mapped to the Router:
+
+```text
+RewriteCond %{REQUEST_URI} ^\/r\/([\w\d]+)?\/([\w\d]+)$
+   RewriteRule r\/([\w\d]+)?\/([\w\d]+) php/Router.php?called_class=$1&called_method=$2 [L,QSA]
+```
+
+* Require a config or directly define the autoloader at the top of your Router.php
 
 <a name="validation"/>
 #### Parameters validation

@@ -1,14 +1,24 @@
 <?php
 
-require "Router.php";
-require "Test.php";
+/**
+ * PHP Router (https://github.com/OverKiller/PHP-Router)
+ *
+ * @author     Damiano Barbati <damiano.barbati@gmail.com>
+ * @copyright  Copyright (c) 2013-2014 Damiano Barbati (http://www.damianobarbati.com)
+ * @license    http://www.wtfpl.net/about/ DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+ * @link       https://github.com/OverKiller/PHP-Router for the source repository
+ */
 
 class RouterTest extends PHPUnit_Framework_TestCase
 {
    private $router;
 
    function setUp()
-   {  $this->router = Router::shellInit("Test/noParams");  }
+   {
+      require_once "Router.php";
+      require_once "Test.php";
+      $this->router = Router::shellInit("Test/noParams");
+   }
 
    function testConstructor()
    {
